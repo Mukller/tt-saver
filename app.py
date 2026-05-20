@@ -63,13 +63,10 @@ def create_folder():
 # VIDEO DOWNLOADER
 # =====================================================
 
-async def download_video(url, folder):
-
-    output_template = os.path.join(
-        folder,
-        "video.%(ext)s"
-    )
-
+def _download_video_sync(url, folder):
+    """Синхронная загрузка видео (без блокировки event loop)"""
+    output_template = os.path.join(folder, "video.%(ext)s")
+    
     ydl_opts = {
         "outtmpl": output_template,
         "format": "best[ext=mp4]/mp4[height<=1080]/mp4",
@@ -91,17 +88,15 @@ async def download_video(url, folder):
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
     }
-
+    
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-
-        info = ydl.extract_info(
-            url,
-            download=True
-        )
-
+        info = ydl.extract_info(url, download=True)
         video_path = ydl.prepare_filename(info)
-
     return video_path
+
+async def download_video(url, folder):
+    """Асинхронная обертка - не блокирует event loop"""
+    return await asyncio.to_thread(_download_video_sync, url, folder)
 
 
 # =====================================================
@@ -356,14 +351,7 @@ async def handle_message(message: Message):
         # EXPAND SHORT URL
         # ============================================
 
-        response = requests.get(
-            original_url,
-            allow_redirects=True,
-            timeout=15,
-            headers={
-                "User-Agent": "Mozilla/5.0"
-            }
-        )
+        response = await asyncio.to_thread(requests.get, original_url, allow_redirects=True, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
 
         final_url = response.url
 
