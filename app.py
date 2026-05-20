@@ -318,35 +318,28 @@ async def create_slideshow(
 
 @dp.message(F.text)
 async def handle_message(message: Message):
-
     text = message.text
-
     if not text:
         return
 
-    matches = re.findall(
-        TIKTOK_REGEX,
-        text
-    )
-
+    matches = re.findall(TIKTOK_REGEX, text)
     if not matches:
         return
 
-    original_url = matches[0]
+    # Spawn background task so dispatcher can process other messages immediately
+    asyncio.create_task(process_tiktok(message, matches[0]))
 
+
+async def process_tiktok(message: Message, original_url: str):
     try:
-        status_message = await message.reply(
-            "📥 Скачиваю TikTok..."
-        ,
-            request_timeout=15
-        )
+        status_message = await message.reply("📥 Скачиваю TikTok...")
     except Exception as reply_error:
         print(f"Reply failed: {reply_error}")
-        status_message = await message.answer(
-            "📥 Скачиваю TikTok..."
-        ,
-            request_timeout=15
-        )
+        try:
+            status_message = await message.answer("📥 Скачиваю TikTok...")
+        except Exception as e:
+            print(f"Answer also failed: {e}")
+            return
 
     request_id, folder = create_folder()
 
