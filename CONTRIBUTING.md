@@ -1,65 +1,68 @@
-# Contributing to TT Saver
+# Contributing to TikTok Telegram Bot
 
-Thank you for your interest in contributing to TT Saver! This document provides guidelines and instructions for contributing.
+Thank you for your interest in contributing! Here's how you can help.
 
-## How to Contribute
+## Getting Started
 
-### Reporting Bugs
+1. Fork the repository
+2. Clone your fork: `git clone https://github.com/YOUR_USERNAME/tt-saver.git`
+3. Create a feature branch: `git checkout -b feature/your-feature`
+4. Install dependencies: `pip install -r requirements.txt`
+5. Make your changes
+6. Commit: `git commit -m "Add your feature"`
+7. Push: `git push origin feature/your-feature`
+8. Create a Pull Request
 
-- Check the issue tracker to see if the bug has already been reported
-- - If not, create a new issue with a clear description
-  - - Include steps to reproduce, expected behavior, and actual behavior
-    - - Add relevant screenshots or error logs if applicable
-     
-      - ### Suggesting Enhancements
-     
-      - - Use the issue tracker to suggest new features or improvements
-        - - Clearly describe the enhancement and its use case
-          - - Provide examples of how the enhancement would work
-           
-            - ### Pull Requests
-           
-            - 1. Fork the repository
-              2. 2. Create a feature branch (`git checkout -b feature/AmazingFeature`)
-                 3. 3. Make your changes
-                    4. 4. Commit your changes (`git commit -m 'Add AmazingFeature'`)
-                       5. 5. Push to the branch (`git push origin feature/AmazingFeature`)
-                          6. 6. Open a Pull Request with a clear title and description
-                            
-                             7. ## Development Setup
-                            
-                             8. ### Prerequisites
-                             9. - Python 3.8+
-                                - - Poetry or pip for dependency management
-                                 
-                                  - ### Installation
-                                 
-                                  - ```bash
-                                    git clone https://github.com/Mukller/tt-saver.git
-                                    cd tt-saver
-                                    pip install -r requirements.txt
-                                    ```
+## Development Setup
 
-                                    ### Running Tests
+```bash
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scriptsctivate
+pip install -r requirements.txt
+```
 
-                                    ```bash
-                                    python -m pytest tests/
-                                    ```
+## Running the Bot
 
-                                    ## Code Style
+```bash
+export BOT_TOKEN='your_token_here'
+python app.py
+```
 
-                                    - Follow PEP 8 guidelines
-                                    - - Use meaningful variable names
-                                      - - Add comments for complex logic
-                                        - - Write docstrings for functions and classes
-                                         
-                                          - ## Commit Messages
-                                         
-                                          - - Use clear, descriptive commit messages
-                                            - - Use the present tense ("Add feature" not "Added feature")
-                                              - - Reference issues when applicable
-                                               
-                                                - ## License
-                                               
-                                                - By contributing to TT Saver, you agree that your contributions will be licensed under its MIT License.
-                                                - 
+## Code Standards
+
+- Follow PEP 8 style guidelines
+- Write clear, descriptive commit messages
+- Add comments for complex logic
+- Test your changes before submitting
+- Update documentation as needed
+
+## Types of Contributions
+
+### Bug Reports
+- Describe the bug clearly
+- Include steps to reproduce
+- Share expected vs actual behavior
+- Include your environment details
+
+### Feature Requests
+- Clearly describe the feature
+- Explain the use case
+- Discuss potential implementation
+
+### Code Contributions
+- Keep changes focused and minimal
+- Write tests for new features
+- Update README if needed
+- Follow the existing code style
+
+## Pull Request Process
+
+1. Update CHANGELOG.md with changes
+2. Ensure all tests pass
+3. Request review from maintainers
+4. Address feedback and comments
+5. Once approved, your PR will be merged
+
+## Questions?
+
+Open an issue or contact the maintainers.

@@ -1,81 +1,84 @@
-# TT Saver
+# TikTok Telegram Bot
 
-Telegram bot for downloading TikTok videos
+A Telegram bot for downloading TikTok videos directly to your messenger.
 
 ## Features
 
-- Download TikTok videos by link
-- Support for yt-dlp backend
-- WebApp integration with Telegram
-- Handle authentication restrictions with cookie-based access
-- Video format support
+- 📥 Download TikTok videos by link
+- ⚡ Fast processing with yt-dlp
+- 🤖 Asynchronous handling of multiple requests
+- 🔧 Simple configuration via .env
+- 📦 Docker support
+- 🚀 Auto-start with systemd
 
 ## Requirements
 
-- Python 3.8+
-- pip or Poetry
-- Redis (for caching)
-         - FFmpeg (for video processing)
+- Python 3.10+
+- pip (Python package manager)
+- Telegram Bot Token (get from @BotFather)
 
-                   ## Installation
+## Installation
 
-                   1. Clone the repository:
-                   ```bash
-                   git clone https://github.com/Mukller/tt-saver.git
-                   cd tt-saver
-                   ```
+### Local Setup
 
-                   2. Install dependencies:
-                   ```bash
-                   pip install -r requirements.txt
-                   ```
+1. Clone the repository:
 
-                   3. Configure environment variables:
-                   ```bash
-                   cp .env.example .env
-                   # Edit .env with your configuration
-                   ```
 
-                   4. Run the bot:
-                   ```bash
-                   python -m backend.app.bot.bot
-                   ```
+2. Create a virtual environment:
 
-                   ## Usage
 
-                   1. Start the bot: `/start`
-                   2. Send a TikTok video link
-                   3. The bot will download and send you the video
-                   4. For restricted videos, enable cookie-based authentication using the `/cookies` command
+3. Install dependencies:
 
-                   ## Architecture
 
-                   - **Backend**: FastAPI for API endpoints
-                   - **Bot**: Telegram bot with WebApp support
-                   - **Download Engine**: yt-dlp for video downloads
-                   - **Cache**: Redis for session management
-                   - **Chess Engine**: Stockfish for game analysis
+4. Create .env file:
 
-                   ## Configuration
 
-                   Key environment variables:
-                   - `TELEGRAM_BOT_TOKEN`: Your Telegram bot token
-                   - `REDIS_URL`: Redis connection URL
-                   - `STOCKFISH_PATH`: Path to Stockfish executable
+5. Run the bot:
 
-                   ## Contributing
 
-                   See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidelines.
+### Docker
 
-                   ## Code of Conduct
 
-                   We are committed to providing a welcoming and inspiring community. Please read [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
 
-                   ## License
+## Usage
 
-                   MIT License - see [LICENSE](LICENSE) for details.
+1. Find the bot in Telegram
+2. Send a TikTok video link
+3. Bot downloads and sends the video
 
-                   ## Author
+Supported formats:
+- Direct video links
+- Short TikTok URLs
+- vm.tiktok.com links
 
-                   Anton Petnitsky (@Mukller)
-                   
+## Configuration
+
+### Environment Variables
+
+| Variable | Description | Required |
+|----------|-------------|----------|
+| BOT_TOKEN | Telegram bot token | ✓ |
+| LOG_LEVEL | Log level (DEBUG/INFO/WARNING) | ✗ |
+| REDIS_URL | Redis URL (if used) | ✗ |
+
+## Project Structure
+
+
+
+## Development
+
+Want to contribute? See [CONTRIBUTING.md](CONTRIBUTING.md)
+
+## License
+
+This project is licensed under the [MIT License](LICENSE.md)
+
+## Support
+
+- GitHub Issues for bugs and features
+- Telegram for quick communication
+
+## Acknowledgments
+
+- [aiogram](https://github.com/aiogram/aiogram) - Telegram Bot API for Python
+- [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Video downloader
