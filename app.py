@@ -139,56 +139,69 @@ async def extract_audio(video_path, folder):
 # PHOTO DOWNLOADER
 # =====================================================
 
+def _fetch_photo_data_sync(url):
+    """Fetch photo post data via tikwm.com API (blocking)."""
+    api_url = "https://www.tikwm.com/api/"
+    r = requests.post(
+        api_url,
+        data={"url": url, "hd": "1"},
+        timeout=15,
+        headers={"User-Agent": "Mozilla/5.0"}
+    )
+    return r.json()
+
+
+def _download_file_sync(url, dest_path):
+    """Download a single file (blocking)."""
+    r = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"}, stream=True)
+    r.raise_for_status()
+    with open(dest_path, "wb") as f:
+        for chunk in r.iter_content(chunk_size=65536):
+            if chunk:
+                f.write(chunk)
+    return dest_path
+
+
 async def download_photos(url, folder):
-    """Download photos from TikTok using yt-dlp."""
-    output_template = os.path.join(folder, "photo_%(autonumber)d.%(ext)s")
-
-    ydl_opts = {
-        "outtmpl": output_template,
-        "format": "best[ext=mp4]/mp4[height<=1080]/mp4",
-        "concurrent_fragment_downloads": 4,
-        "quiet": False,
-        "noplaylist": True,
-        "socket_timeout": 30,
-        "http_chunk_size": 10485760,
-        "retries": 3,
-        "fragment_retries": 3,
-        "skip_unavailable_fragments": True,
-        "extractor_args": {
-            "tiktok": {
-                "api_hostname": "api.tiktok.com"
-            }
-        },
-        "http_headers": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        }
-    }
-
+    """Download photos from TikTok using tikwm.com API."""
     photos = []
     audio_path = None
 
-    def _do_download():
-        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            return ydl.extract_info(url, download=True)
-
     try:
-        info = await asyncio.to_thread(_do_download)
+        data = await asyncio.to_thread(_fetch_photo_data_sync, url)
     except Exception as e:
-        print(f"Error downloading photos with yt-dlp: {e}")
+        print(f"Error fetching photo data: {e}")
         return photos, audio_path
 
-    # ищем скачанные файлы
-    for root, dirs, files in os.walk(folder):
-        for file in files:
-            full_path = os.path.join(root, file)
-            if file.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".mp4")):
-                if file.lower().endswith(".mp4"):
-                    # это может быть видео или фото в mp4 формате
-                    photos.append(full_path)
-                else:
-                    photos.append(full_path)
-            elif file.lower().endswith(".mp3"):
-                audio_path = full_path
+    if data.get("code") != 0:
+        print(f"tikwm API error: {data.get("msg")}")
+        return photos, audio_path
+
+    item = data.get("data", {})
+    image_urls = item.get("images", []) or []
+    music_url = item.get("music")
+
+    # Download photos in parallel
+    download_tasks = []
+    for i, img_url in enumerate(image_urls, start=1):
+        photo_path = os.path.join(folder, f"photo_{i:03d}.jpg")
+        download_tasks.append(asyncio.to_thread(_download_file_sync, img_url, photo_path))
+
+    if download_tasks:
+        results = await asyncio.gather(*download_tasks, return_exceptions=True)
+        for res in results:
+            if isinstance(res, str) and os.path.exists(res):
+                photos.append(res)
+
+    # Download audio
+    if music_url:
+        audio_path_candidate = os.path.join(folder, "audio.mp3")
+        try:
+            await asyncio.to_thread(_download_file_sync, music_url, audio_path_candidate)
+            if os.path.exists(audio_path_candidate):
+                audio_path = audio_path_candidate
+        except Exception as e:
+            print(f"Error downloading audio: {e}")
 
     photos.sort()
     return photos, audio_path
