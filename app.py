@@ -72,7 +72,8 @@ async def download_video(url, folder):
 
     ydl_opts = {
         "outtmpl": output_template,
-        "format": "best",
+        "format": "best[ext=mp4]/mp4[height<=1080]/mp4",
+        "concurrent_fragment_downloads": 4,
         "quiet": True,
         "noplaylist": True,
         "merge_output_format": "mp4",
@@ -81,6 +82,11 @@ async def download_video(url, folder):
         "retries": 3,
         "fragment_retries": 3,
         "skip_unavailable_fragments": True,
+        "extractor_args": {
+            "tiktok": {
+                "api_hostname": "api.tiktok.com"
+            }
+        },
         "http_headers": {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
@@ -143,7 +149,8 @@ async def download_photos(url, folder):
 
     ydl_opts = {
         "outtmpl": output_template,
-        "format": "best",
+        "format": "best[ext=mp4]/mp4[height<=1080]/mp4",
+        "concurrent_fragment_downloads": 4,
         "quiet": False,
         "noplaylist": True,
         "socket_timeout": 30,
@@ -151,6 +158,11 @@ async def download_photos(url, folder):
         "retries": 3,
         "fragment_retries": 3,
         "skip_unavailable_fragments": True,
+        "extractor_args": {
+            "tiktok": {
+                "api_hostname": "api.tiktok.com"
+            }
+        },
         "http_headers": {
             "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
