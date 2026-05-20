@@ -1,4 +1,5 @@
 import asyncio
+import json
 import logging
 import re
 import os
@@ -11,7 +12,10 @@ from aiogram import Bot, Dispatcher, F
 from aiogram.types import (
     Message,
     FSInputFile,
-    InputMediaPhoto
+    InputMediaPhoto,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    CallbackQuery
 )
 
 from aiogram.enums import ParseMode
@@ -37,6 +41,43 @@ bot = Bot(
 dp = Dispatcher()
 
 TEMP_DIR = "./temp"
+SETTINGS_FILE = "settings.json"
+DEFAULT_SETTINGS = {
+    "audio_video": True,
+    "audio_photos": True,
+}
+
+
+def load_settings():
+    if os.path.exists(SETTINGS_FILE):
+        try:
+            with open(SETTINGS_FILE, "r") as f:
+                data = json.load(f)
+                return {**DEFAULT_SETTINGS, **data}
+        except Exception as e:
+            print(f"Failed to load settings: {e}")
+    return DEFAULT_SETTINGS.copy()
+
+
+def save_settings(s):
+    try:
+        with open(SETTINGS_FILE, "w") as f:
+            json.dump(s, f)
+    except Exception as e:
+        print(f"Failed to save settings: {e}")
+
+
+SETTINGS = load_settings()
+
+
+def settings_keyboard():
+    av = "✅" if SETTINGS.get("audio_video") else "❌"
+    ap = "✅" if SETTINGS.get("audio_photos") else "❌"
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=f"🎬 Аудио для видео: {av}", callback_data="toggle_audio_video")],
+        [InlineKeyboardButton(text=f"🖼 Аудио для фото: {ap}", callback_data="toggle_audio_photos")],
+    ])
+
 
 TIKTOK_REGEX = r'(https?://[^\s]*tiktok\.com/[^\s]+)'
 
@@ -329,6 +370,31 @@ async def create_slideshow(
 # MESSAGE HANDLER
 # =====================================================
 
+@dp.message(F.text, F.text.startswith("/settings"))
+async def cmd_settings(message: Message):
+    if message.chat.type != "private":
+        await message.reply("⚙️ Настройки доступны только в личных сообщениях.")
+        return
+    await message.answer(
+        "⚙️ <b>Общие настройки</b> (для всех пользователей):\nНажми кнопку, чтобы переключить.",
+        reply_markup=settings_keyboard()
+    )
+
+
+@dp.callback_query(F.data.in_({"toggle_audio_video", "toggle_audio_photos"}))
+async def cb_toggle(query: CallbackQuery):
+    key = "audio_video" if query.data == "toggle_audio_video" else "audio_photos"
+    SETTINGS[key] = not SETTINGS.get(key, True)
+    save_settings(SETTINGS)
+    try:
+        await query.message.edit_reply_markup(reply_markup=settings_keyboard())
+    except Exception as e:
+        print(f"edit_reply_markup failed: {e}")
+    state = "включено" if SETTINGS[key] else "выключено"
+    label = "Аудио для видео" if key == "audio_video" else "Аудио для фото"
+    await query.answer(f"{label}: {state}")
+
+
 @dp.message(F.text)
 async def handle_message(message: Message):
     text = message.text
@@ -418,7 +484,7 @@ async def process_tiktok(message: Message, original_url: str):
                     caption="🎞 Slideshow"
                 )
 
-            if audio_path:
+            if audio_path and SETTINGS.get("audio_photos", True):
 
                 audio = FSInputFile(
                     audio_path
@@ -457,21 +523,22 @@ async def process_tiktok(message: Message, original_url: str):
                 caption="✨ Видео"
             )
 
-            audio_path = await extract_audio(
-                video_path,
-                folder
-            )
-
-            if audio_path:
-
-                audio = FSInputFile(
-                    audio_path
+            if SETTINGS.get("audio_video", True):
+                audio_path = await extract_audio(
+                    video_path,
+                    folder
                 )
 
-                await message.answer_audio(
-                    audio,
-                    caption="🎵 Аудио"
-                )
+                if audio_path:
+
+                    audio = FSInputFile(
+                        audio_path
+                    )
+
+                    await message.answer_audio(
+                        audio,
+                        caption="🎵 Аудио"
+                    )
 
         shutil.rmtree(
             folder,
