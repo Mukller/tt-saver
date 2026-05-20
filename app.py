@@ -215,106 +215,61 @@ async def create_slideshow(
     folder,
     audio_path=None
 ):
-
     if not photos:
         return None
 
-    list_file = os.path.join(
-        folder,
-        "slides.txt"
-    )
-
-    with open(list_file, "w") as f:
-
-        for photo in photos:
-
-            f.write(
-                f"file '{photo}'\n"
-            )
-
-            f.write(
-                "duration 2\n"
-            )
-
-    slideshow_path = os.path.join(
-        folder,
-        "slideshow.mp4"
-    )
-
-    # =========================================
-    # WITH AUDIO
-    # =========================================
-
-    if audio_path and os.path.exists(audio_path):
-
-        command = [
-
-            "ffmpeg",
-
-            "-f",
-            "concat",
-
-            "-safe",
-            "0",
-
-            "-i",
-            list_file,
-
-            "-i",
-            audio_path,
-
-            "-vf",
-            "fps=25,format=yuv420p",
-
-            "-shortest",
-
-            "-pix_fmt",
-            "yuv420p",
-
-            "-c:v",
-            "libx264",
-
-            "-c:a",
-            "aac",
-
-            slideshow_path,
-
-            "-y"
-        ]
-
-    # =========================================
-    # WITHOUT AUDIO
-    # =========================================
-
+    # Duration rules: 1 photo -> 15s, multiple -> 5s each
+    if len(photos) == 1:
+        per_photo = 15.0
     else:
+        per_photo = 5.0
 
-        command = [
+    total_duration = per_photo * len(photos)
 
-            "ffmpeg",
+    slideshow_path = os.path.join(folder, "slideshow.mp4")
+    has_audio = audio_path and os.path.exists(audio_path)
 
-            "-f",
-            "concat",
-
-            "-safe",
-            "0",
-
-            "-i",
-            list_file,
-
-            "-vf",
-            "fps=25,format=yuv420p",
-
-            "-pix_fmt",
-            "yuv420p",
-
-            slideshow_path,
-
-            "-y"
+    # ----- Single photo: loop with -t -----
+    if len(photos) == 1:
+        cmd = ["ffmpeg", "-y", "-loop", "1", "-i", photos[0]]
+        if has_audio:
+            cmd += ["-stream_loop", "-1", "-i", audio_path]
+        cmd += [
+            "-t", str(total_duration),
+            "-vf", "fps=25,format=yuv420p,scale=trunc(iw/2)*2:trunc(ih/2)*2",
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
         ]
+        if has_audio:
+            cmd += ["-c:a", "aac", "-shortest"]
+        cmd.append(slideshow_path)
+
+    # ----- Multiple photos: concat demuxer -----
+    else:
+        list_file = os.path.join(folder, "slides.txt")
+        with open(list_file, "w") as f:
+            for photo in photos:
+                f.write(f"file '{photo}'\n")
+                f.write(f"duration {per_photo}\n")
+            # ffmpeg concat: last duration is ignored, so repeat last file
+            f.write(f"file '{photos[-1]}'\n")
+
+        cmd = ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", list_file]
+        if has_audio:
+            cmd += ["-stream_loop", "-1", "-i", audio_path]
+        cmd += [
+            "-t", str(total_duration),
+            "-vf", "fps=25,format=yuv420p,scale=trunc(iw/2)*2:trunc(ih/2)*2",
+            "-c:v", "libx264",
+            "-pix_fmt", "yuv420p",
+        ]
+        if has_audio:
+            cmd += ["-c:a", "aac", "-shortest"]
+        cmd.append(slideshow_path)
 
     await asyncio.to_thread(
         subprocess.run,
-        command,
+        cmd,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
     )
@@ -323,7 +278,6 @@ async def create_slideshow(
         return slideshow_path
 
     return None
-
 
 # =====================================================
 # MESSAGE HANDLER
