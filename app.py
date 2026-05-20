@@ -71,19 +71,18 @@ async def download_video(url, folder):
     )
 
     ydl_opts = {
-
         "outtmpl": output_template,
-
-        "format": "mp4",
-
+        "format": "best",
         "quiet": True,
-
         "noplaylist": True,
-
         "merge_output_format": "mp4",
-
+        "socket_timeout": 30,
+        "http_chunk_size": 10485760,
+        "retries": 3,
+        "fragment_retries": 3,
+        "skip_unavailable_fragments": True,
         "http_headers": {
-            "User-Agent": "Mozilla/5.0"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
         }
     }
 
@@ -139,28 +138,44 @@ async def extract_audio(video_path, folder):
 # =====================================================
 
 async def download_photos(url, folder):
-    import subprocess
+    """Download photos from TikTok using yt-dlp."""
+    output_template = os.path.join(folder, "photo_%(autonumber)d.%(ext)s")
 
-    # запускаем gallery-dl через venv
-    command = [
-        "python3",
-        "-m",
-        "gallery_dl",
-        "-D",
-        folder,
-        url
-    ]
-    subprocess.run(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    ydl_opts = {
+        "outtmpl": output_template,
+        "format": "best",
+        "quiet": False,
+        "noplaylist": True,
+        "socket_timeout": 30,
+        "http_chunk_size": 10485760,
+        "retries": 3,
+        "fragment_retries": 3,
+        "skip_unavailable_fragments": True,
+        "http_headers": {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+    }
 
     photos = []
     audio_path = None
 
-    # рекурсивно ищем фотки и mp3
+    try:
+        with yt_dlp.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=True)
+    except Exception as e:
+        print(f"Error downloading photos with yt-dlp: {e}")
+        return photos, audio_path
+
+    # ищем скачанные файлы
     for root, dirs, files in os.walk(folder):
         for file in files:
             full_path = os.path.join(root, file)
-            if file.lower().endswith((".jpg", ".jpeg", ".png", ".webp")):
-                photos.append(full_path)
+            if file.lower().endswith((".jpg", ".jpeg", ".png", ".webp", ".mp4")):
+                if file.lower().endswith(".mp4"):
+                    # это может быть видео или фото в mp4 формате
+                    photos.append(full_path)
+                else:
+                    photos.append(full_path)
             elif file.lower().endswith(".mp3"):
                 audio_path = full_path
 
@@ -307,9 +322,19 @@ async def handle_message(message: Message):
 
     original_url = matches[0]
 
-    status_message = await message.reply(
-        "📥 Скачиваю TikTok..."
-    )
+    try:
+        status_message = await message.reply(
+            "📥 Скачиваю TikTok..."
+        ,
+            request_timeout=15
+        )
+    except Exception as reply_error:
+        print(f"Reply failed: {reply_error}")
+        status_message = await message.answer(
+            "📥 Скачиваю TikTok..."
+        ,
+            request_timeout=15
+        )
 
     request_id, folder = create_folder()
 
