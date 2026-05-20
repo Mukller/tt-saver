@@ -122,7 +122,8 @@ async def extract_audio(video_path, folder):
         "-y"
     ]
 
-    subprocess.run(
+    await asyncio.to_thread(
+        subprocess.run,
         command,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
@@ -166,9 +167,12 @@ async def download_photos(url, folder):
     photos = []
     audio_path = None
 
-    try:
+    def _do_download():
         with yt_dlp.YoutubeDL(ydl_opts) as ydl:
-            info = ydl.extract_info(url, download=True)
+            return ydl.extract_info(url, download=True)
+
+    try:
+        info = await asyncio.to_thread(_do_download)
     except Exception as e:
         print(f"Error downloading photos with yt-dlp: {e}")
         return photos, audio_path
@@ -295,7 +299,8 @@ async def create_slideshow(
             "-y"
         ]
 
-    subprocess.run(
+    await asyncio.to_thread(
+        subprocess.run,
         command,
         stdout=subprocess.DEVNULL,
         stderr=subprocess.DEVNULL
