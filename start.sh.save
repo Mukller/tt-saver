@@ -1,5 +1,0 @@
-#!/bin/bash
-
-cd /home/anton/Tiktok-saver
-
-exec screen -DmS tiktok-bot /home/anton/Tiktok-saver/venv/bin/python3 app.py
