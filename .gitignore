@@ -43,3 +43,4 @@ share/python-wheels/
 # Project specific
 *.log
 .cache/
+venv/
