@@ -215,7 +215,7 @@ async def download_photos(url, folder):
         return photos, audio_path
 
     if data.get("code") != 0:
-        print(f"tikwm API error: {data.get("msg")}")
+        print(f"tikwm API error: {data.get('msg')}")
         return photos, audio_path
 
     item = data.get("data", {})
