@@ -1,22 +1,13 @@
 <div align="center">
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-purple?style=flat-square)](LICENSE.md)
-[![maintained](https://img.shields.io/badge/maintained%3F-yes-green?style=flat-square)](https://github.com/Mukller/tt-saver)
+[![maintained](https://img.shields.io/badge/maintained%3F-yes-green?style=flat-square)](https://github.com/Mukller/REPO)
 [![contributions welcome](https://img.shields.io/badge/contributions-welcome-brightgreen?style=flat-square)](CONTRIBUTING.md)
-
----
-
-## Language / Язык
 
 </div>
 
-| **📖 English** | **📖 Русский** |
-|:---:|:---:|
-| Scroll down / Листай вниз | Листай вниз / Scroll down |
-
----
-
-## English Version
+<details open>
+<summary><strong>📖 English</strong></summary>## English Version
 
 
 
@@ -107,6 +98,11 @@ This project is licensed under the [MIT License](LICENSE.md)
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Video downloader
 
 ---
+
+</details>
+
+<details>
+<summary><strong>📖 Русский</strong></summary>
 
 ## Русская версия
 
@@ -208,3 +204,5 @@ Telegram бот для скачивания видео с TikTok прямо в �
 
 - [aiogram](https://github.com/aiogram/aiogram) - Telegram Bot API для Python
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp) - Загрузчик видео
+
+</details>
