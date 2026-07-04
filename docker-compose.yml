@@ -1,0 +1,11 @@
+services:
+  bot:
+    build: .
+    container_name: tiktok-saver
+    env_file:
+      - .env
+    volumes:
+      - ./cookies.txt:/app/cookies.txt
+      - ./settings.json:/app/settings.json
+      - ./temp:/app/temp
+    restart: unless-stopped

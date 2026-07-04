@@ -107,29 +107,35 @@ def create_folder():
 def _download_video_sync(url, folder):
     """Синхронная загрузка видео (без блокировки event loop)"""
     output_template = os.path.join(folder, "video.%(ext)s")
-    
+
+    cookies_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "cookies.txt")
+
     ydl_opts = {
         "outtmpl": output_template,
         "format": "best[ext=mp4]/mp4[height<=1080]/mp4",
-        "concurrent_fragment_downloads": 4,
+        "concurrent_fragment_downloads": 8,
+        "buffersize": 1048576,
         "quiet": True,
         "noplaylist": True,
         "merge_output_format": "mp4",
-        "socket_timeout": 30,
+        "socket_timeout": 20,
         "http_chunk_size": 10485760,
         "retries": 3,
         "fragment_retries": 3,
         "skip_unavailable_fragments": True,
         "extractor_args": {
             "tiktok": {
-                "api_hostname": "api.tiktok.com"
+                "api_hostname": "api16-normal-c-useast1a.tiktokv.com"
             }
         },
         "http_headers": {
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/125.0.0.0 Safari/537.36"
         }
     }
-    
+
+    if os.path.exists(cookies_file):
+        ydl_opts["cookiefile"] = cookies_file
+
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=True)
         video_path = ydl.prepare_filename(info)
@@ -197,7 +203,7 @@ def _download_file_sync(url, dest_path):
     r = requests.get(url, timeout=30, headers={"User-Agent": "Mozilla/5.0"}, stream=True)
     r.raise_for_status()
     with open(dest_path, "wb") as f:
-        for chunk in r.iter_content(chunk_size=65536):
+        for chunk in r.iter_content(chunk_size=1048576):
             if chunk:
                 f.write(chunk)
     return dest_path
@@ -246,6 +252,38 @@ async def download_photos(url, folder):
 
     photos.sort()
     return photos, audio_path
+
+
+async def _photos_from_item(item, folder):
+    """Скачать фото/аудио из уже полученного tikwm item (без повторного API-запроса)."""
+    photos = []
+    audio_path = None
+    image_urls = item.get("images", []) or []
+    music_url = item.get("music")
+
+    download_tasks = []
+    for i, img_url in enumerate(image_urls, start=1):
+        photo_path = os.path.join(folder, f"photo_{i:03d}.jpg")
+        download_tasks.append(asyncio.to_thread(_download_file_sync, img_url, photo_path))
+
+    if download_tasks:
+        results = await asyncio.gather(*download_tasks, return_exceptions=True)
+        for res in results:
+            if isinstance(res, str) and os.path.exists(res):
+                photos.append(res)
+
+    if music_url:
+        audio_path_candidate = os.path.join(folder, "audio.mp3")
+        try:
+            await asyncio.to_thread(_download_file_sync, music_url, audio_path_candidate)
+            if os.path.exists(audio_path_candidate):
+                audio_path = audio_path_candidate
+        except Exception as e:
+            print(f"Error downloading audio: {e}")
+
+    photos.sort()
+    return photos, audio_path
+
 
 # =====================================================
 # SLIDESHOW CREATOR
@@ -425,23 +463,21 @@ async def process_tiktok(message: Message, original_url: str):
     try:
 
         # ============================================
-        # EXPAND SHORT URL
+        # ОПРЕДЕЛЯЕМ ТИП (один API-запрос вместо двух)
         # ============================================
 
-        response = await asyncio.to_thread(requests.get, original_url, allow_redirects=True, timeout=15, headers={"User-Agent": "Mozilla/5.0"})
-
-        final_url = response.url
-
-        print("FINAL URL:", final_url)
+        tikwm_data = await asyncio.to_thread(_fetch_photo_data_sync, original_url)
+        item = tikwm_data.get("data", {}) if tikwm_data.get("code") == 0 else {}
+        is_photo = bool(item.get("images"))
 
         # ============================================
         # PHOTO POSTS
         # ============================================
 
-        if "/photo/" in final_url:
+        if is_photo:
 
-            photos, audio_path = await download_photos(
-                final_url,
+            photos, audio_path = await _photos_from_item(
+                item,
                 folder
             )
 
@@ -463,15 +499,16 @@ async def process_tiktok(message: Message, original_url: str):
                     )
                 )
 
+            # Слайдшоу создаём в фоне пока Telegram принимает фото
+            slideshow_task = asyncio.create_task(
+                create_slideshow(photos, folder, audio_path)
+            )
+
             await message.answer_media_group(
                 media
             )
 
-            slideshow = await create_slideshow(
-                photos,
-                folder,
-                audio_path
-            )
+            slideshow = await slideshow_task
 
             if slideshow:
 
@@ -501,10 +538,32 @@ async def process_tiktok(message: Message, original_url: str):
 
         else:
 
-            video_path = await download_video(
-                final_url,
-                folder
-            )
+            # Быстрый путь: видео + аудио с tikwm CDN параллельно, без ffmpeg
+            play_url = item.get("hdplay") or item.get("play")
+            music_url = item.get("music") if SETTINGS.get("audio_video", True) else None
+            video_path = os.path.join(folder, "video.mp4")
+            audio_path = None
+            used_ytdlp = False
+
+            if play_url:
+                try:
+                    music_dest = os.path.join(folder, "audio.mp3")
+                    dl_tasks = [asyncio.to_thread(_download_file_sync, play_url, video_path)]
+                    if music_url:
+                        dl_tasks.append(asyncio.to_thread(_download_file_sync, music_url, music_dest))
+                    results = await asyncio.gather(*dl_tasks, return_exceptions=True)
+                    if isinstance(results[0], Exception):
+                        raise results[0]
+                    if music_url and not isinstance(results[1], Exception) and os.path.exists(music_dest):
+                        audio_path = music_dest
+                except Exception as e:
+                    print(f"tikwm CDN failed: {e}, fallback to yt-dlp")
+                    play_url = None
+
+            if not play_url or not os.path.exists(video_path):
+                # Fallback: yt-dlp + ffmpeg аудио
+                used_ytdlp = True
+                video_path = await download_video(original_url, folder)
 
             if not os.path.exists(video_path):
 
@@ -513,6 +572,12 @@ async def process_tiktok(message: Message, original_url: str):
                 )
 
                 return
+
+            # Для yt-dlp пути — ffmpeg аудио параллельно с отправкой в Telegram
+            audio_task = (
+                asyncio.create_task(extract_audio(video_path, folder))
+                if used_ytdlp and SETTINGS.get("audio_video", True) else None
+            )
 
             video = FSInputFile(
                 video_path
@@ -524,17 +589,13 @@ async def process_tiktok(message: Message, original_url: str):
             )
 
             if SETTINGS.get("audio_video", True):
-                audio_path = await extract_audio(
-                    video_path,
-                    folder
-                )
-
-                if audio_path:
-
+                final_audio = audio_path  # tikwm CDN (уже готов)
+                if audio_task:
+                    final_audio = await audio_task  # yt-dlp + ffmpeg
+                if final_audio and os.path.exists(final_audio):
                     audio = FSInputFile(
-                        audio_path
+                        final_audio
                     )
-
                     await message.answer_audio(
                         audio,
                         caption="🎵 Аудио"
@@ -556,9 +617,16 @@ async def process_tiktok(message: Message, original_url: str):
             ignore_errors=True
         )
 
-        await status_message.edit_text(
-            f"❌ Ошибка:\n{str(e)}"
-        )
+        err = str(e)
+        if 'permission' in err.lower() or 'not have permission' in err.lower():
+            text = '❌ Видео ограничено — требуется вход в TikTok. Попробуй другое видео.'
+        elif 'not available' in err.lower() or 'removed' in err.lower():
+            text = '❌ Видео удалено или недоступно в твоём регионе.'
+        elif 'Unable to download' in err or 'HTTP Error' in err:
+            text = '❌ Ошибка сети при скачивании. Попробуй ещё раз.'
+        else:
+            text = '❌ Ошибка:' + chr(10) + err[:300]
+        await status_message.edit_text(text)
 
 
 # =====================================================

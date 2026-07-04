@@ -20,3 +20,11 @@ __pycache__/
 # OS
 .DS_Store
 settings.json
+
+# Local runtime artifacts (not for git)
+cookies.txt
+bot.log
+app.py.backup
+app.py.backup.async
+app.py.new
+temp/
